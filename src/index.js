@@ -1,9 +1,8 @@
 const os = require('os')
 const fs = require('fs')
-const exec = require('child_process').exec
+const { exec, spawn } = require('child_process')
 
-// todo 支持回调事件
-// todo 方法返回多个参数到下一个方法
+// todo macOS
 
 /**
  * systems
@@ -35,8 +34,8 @@ function noop (...args) {
 
 // 验证方法
 const validate = {
-  isUrl: function (url) {
-
+  isUrl: function (_url) {
+    return /^https?:\/\//.test(_url)
   },
   isFilePath: function (filepath) {
     return fs.existsSync(filepath)
@@ -55,16 +54,31 @@ const fileManage = {
     }
     return filepath
   },
-  win32: function (filepath) {
+  win32: function (filepath, cb) {
     exec(`explorer ${filepath}`)
   },
   darwin: function (filepath) {
   }
 }
 
+// 打开浏览器
+const openBrowser = {
+  validate: function (url) {
+    if (!validate.isUrl(url)) {
+      throw new Error(`${url} isn\'t correct url`)
+    }
+    return url
+  },
+  win32: function (url) {
+    exec(`start ${url}`)
+  },
+  darwin: function () {
+  }
+}
+
 // 弹框提示
 const msgBox = {
-  validate: function (title, content) {
+  validate: function (title, content, cb) {
     const isString = validate.isString
     if (!isString(title)) {
       throw new Error('title isn\'t a string')
@@ -72,21 +86,20 @@ const msgBox = {
     if (!isString(content)) {
       throw new Error('content isn\'t a string')
     }
-    return {title, content}
+    return {title, content, cb}
   }
   ,
-  win32: function ({title, content}) {
-    exec(`mshta vbscript:msgbox("${content}",64,"${title}")(window.close)`)
-  },
-  darwin: function () {
-  }
-}
-
-// 打开浏览器
-const openBrowser = {
-  win32: function (url, a) {
-    console.log(a)
-    exec(`start ${url}`)
+  win32: function ({title, content, cb}) {
+    return new Promise((resolve, reject) => {
+      const cmd = exec(`mshta vbscript:msgbox("${content}",1,"${title}")(window.close)`)
+      cmd.stderr.on('data', (err) => {
+        reject(err)
+      })
+      cmd.on('exit', function (code) {
+        if (cb) cb(code)
+        resolve(code)
+      })
+    })
   },
   darwin: function () {
   }
@@ -97,6 +110,7 @@ const commands = {
   msgBox,
   openBrowser,
 }
+
 
 Object.keys(commands).forEach(command => {
   commands[command] = compose(
