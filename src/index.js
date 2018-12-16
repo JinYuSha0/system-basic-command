@@ -2,8 +2,6 @@ const os = require('os')
 const fs = require('fs')
 const { exec } = require('child_process')
 
-// todo macOS
-
 /**
  * systems
  * aix
@@ -58,6 +56,7 @@ const fileManage = {
     exec(`explorer ${filepath}`)
   },
   darwin: function (filepath) {
+    exec(`open ${filepath}`)
   }
 }
 
@@ -72,7 +71,8 @@ const openBrowser = {
   win32: function (url) {
     exec(`start ${url}`)
   },
-  darwin: function () {
+  darwin: function (url) {
+    exec(`open '${url}'`)
   }
 }
 
@@ -100,8 +100,18 @@ const msgBox = {
       })
     })
   },
-  darwin: function () {
-  }
+  darwin: function ({title, content, cb}) {
+    return new Promise((resolve, reject) => {
+      const cmd = exec(`osascript -e 'tell application (path to frontmost application as text) to display dialog "${content}" buttons {"OK"} with title "${title}" with icon note'`)
+      cmd.stderr.on('data', (err) => {
+        reject(err)
+      })
+      cmd.on('exit', function (code) {
+        if (cb) cb(code)
+        resolve(code)
+      })
+    })
+  },
 }
 
 const commands = {
@@ -109,7 +119,6 @@ const commands = {
   msgBox,
   openBrowser,
 }
-
 
 Object.keys(commands).forEach(command => {
   commands[command] = compose(
