@@ -87,8 +87,7 @@ const msgBox = {
       throw new Error('content isn\'t a string')
     }
     return {title, content, cb}
-  }
-  ,
+  },
   win32: function ({title, content, cb}) {
     return new Promise((resolve, reject) => {
       const cmd = exec(`mshta vbscript:msgbox("${content}",1,"${title}")(window.close)`)
