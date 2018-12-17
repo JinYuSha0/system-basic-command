@@ -114,10 +114,39 @@ const msgBox = {
   },
 }
 
+// 获取默认网关地址
+const getGateway = {
+  validate (networkCardName, cb) {
+    if (!networkCardName || !validate.isString(networkCardName)) {
+      throw new Error(`networkCardName expect is String not ${typeof networkCardName}`)
+    }
+    return {networkCardName, cb}
+  },
+  win32: function ({networkCardName, cb}) {
+    // todo
+  },
+  darwin: function ({networkCardName, cb}) {
+    return new Promise((resolve, reject) => {
+      const cmd = exec(`netstat -rn | grep 'default'`)
+      cmd.stderr.on('data', (err) => {
+        reject(err)
+      })
+      cmd.stdout.on('data', (data) => {
+        const rowReg = `[^\\n]+${networkCardName}`
+        const row = data.match(rowReg, 'g')[0]
+        const gateway = row.match(/\d+\.\d+\.\d+\.\d+/)[0]
+        cb(gateway)
+        resolve(gateway)
+      })
+    })
+  }
+}
+
 const commands = {
   fileManage,
   msgBox,
   openBrowser,
+  getGateway
 }
 
 Object.keys(commands).forEach(command => {
