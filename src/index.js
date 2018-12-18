@@ -1,5 +1,6 @@
 const os = require('os')
 const fs = require('fs')
+const iconv = require('iconv-lite')
 const { exec } = require('child_process')
 
 /**
@@ -123,7 +124,22 @@ const getGateway = {
     return {networkCardName, cb}
   },
   win32: function ({networkCardName, cb}) {
-    // todo
+    return new Promise((resolve, reject) => {
+      const cmd = exec(`ipconfig`, { encoding: 'buffer' })
+      cmd.stderr.on('data', (err) => {
+        reject(err)
+      })
+      cmd.stdout.on('data', (data) => {
+        const info = iconv.decode(data, 'cp936')
+        const reg = `[\\s\\S]+${networkCardName}.*\\r\\n\\r\\n.*\\r\\n.*\\r\\n.*\\r\\n.*\\r\\n(.*)\\r\\n.*\\r\\n`
+        const res = info.match(reg)
+        if (res) {
+          const gateway = res[1].match(/\d+\.\d+\.\d+\.\d+/)[0]
+          cb(gateway)
+          resolve(gateway)
+        }
+      })
+    })
   },
   darwin: function ({networkCardName, cb}) {
     return new Promise((resolve, reject) => {
